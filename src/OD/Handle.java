@@ -122,17 +122,20 @@ public class Handle {
 			ArrayList<DataStruct> objList=DataInitial.objectList;
 			ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
 			
-			System.out.println("\nsplit tuple");
+			if(debug) System.out.println("\nsplit tuple");
 			//对于每个发生split的等价类
 			for(Entry<ArrayList<Integer>,ECRHS> entry:splitEC.entrySet()) {
-				System.out.print("\n\nkey: ");
-				for(int i:entry.getKey()) {
-					System.out.print(i+" ");
+				if(debug) {
+					System.out.print("\n\nkey: ");
+					for(int i:entry.getKey()) {
+						System.out.print(i+" ");
+					}
 				}
+				
 				
 				ECRHS value=entry.getValue();
 				
-				value.print();
+				if(debug) value.print();
 				//建立等价类
 				for(int otid:value.origin_tids) {
 					DataStruct data= objList.get(otid);

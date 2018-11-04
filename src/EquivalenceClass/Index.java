@@ -45,12 +45,12 @@ public class Index {
 		//return ECIndexList;
 	}
 	//增量数据插入，更新tree的信息
-	public void updateIndexes() {
+	public void updateIndexes(ArrayList<OrderDependency> odList) {
 		
 		//对于索引中每一个等价类都做更新
-		for(int i=0;i<tn;i++) {
+		for(OrderDependency od:odList) {
 			ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
-			EquiClass<InstanceKey> tmp_ind=ECIndexList.get(i);
+			EquiClass<InstanceKey> tmp_ind=ECIndexList.get(indexMap.get(od.getLHS()));
 			for(int tid=0;tid<iObjList.size();tid++) {
 				InstanceKey key=new InstanceKey(tmp_ind.getAttrName(),iObjList.get(tid));
 				tmp_ind.addTupleforIncreData(key, tid);

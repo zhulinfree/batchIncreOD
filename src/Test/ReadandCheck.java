@@ -28,14 +28,25 @@ public static void main(String[] args) {
 		for(OrderDependency od:odList) od.printOD();
 		System.out.println("共有"+objectList.size()+"条数据\n共有"+iObjectList.size()+"条增量数据");
 
-		indexes.print();
-		indexes.printECChanged();
-		
+//		indexes.print();
+//		indexes.printECChanged();
+		long start = System.currentTimeMillis( );
 		checkandRepair(originalODList);
+		
+		
+		
 		enrichment();
+		//在enrich之前需要更新索引结构
+		indexes.buildIndexes(enrichODList);
+		indexes.updateIndexes(enrichODList);
+		
 		if(!enrichODList.isEmpty()) odList.addAll(enrichODList);
 		checkandRepair(enrichODList);
 		
+		
+		long end = System.currentTimeMillis( );
+        long diff = end - start;
+		System.out.println(objectList.size()+"条数据"+iObjectList.size()+"条增量数据 共耗时"+diff+"毫秒");
 		System.out.println("The last od is:");
 		if(!odList.isEmpty())
 			for(OrderDependency od:odList) od.printOD();
@@ -49,8 +60,16 @@ public static void main(String[] args) {
 		for(OrderDependency od:ODLi) {
 			int ecid=getECId(od.getLHS());
 			Handle handle=new Handle();
+			
+			long t1 = System.currentTimeMillis( );
+			
 			String violation_type=handle.detectOD(ecid);
 			
+			
+			long t2 = System.currentTimeMillis( );
+			System.out.println("detect");
+			od.printOD();
+			System.out.println("花费"+(t2-t1)+"ms\n");
 			
 			boolean not_valid=false;
 			System.out.println(violation_type);
@@ -66,7 +85,17 @@ public static void main(String[] args) {
 				odList.remove(od);
 				incorrectODList.add(od);
 			}else if(violation_type.equals("split")) {
+				
+				long t3 = System.currentTimeMillis( );
+				
 				ArrayList<OrderDependency> res=handle.repairSplit(indexes.ECIndexList.get(ecid).splitECBlock,od);
+				
+				long t4 = System.currentTimeMillis( );
+				System.out.println("split");
+				od.printOD();
+				System.out.println("花费"+(t4-t3)+"ms\n");
+				
+				
 				if(!not_valid) incorrectODList.add(new OrderDependency(od));
 				odList.remove(od);
 				if(res!=null) {
@@ -115,7 +144,7 @@ public static void main(String[] args) {
 		iObjectList=DataInitial.iObjectList;
 		odList=DataInitial.odList;
 		indexes.buildIndexes(odList);
-		indexes.updateIndexes();
+		indexes.updateIndexes(odList);
 	}
 	
 	private static void listClear() {

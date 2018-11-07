@@ -37,10 +37,10 @@ public class Handle {
 		for(Entry<ArrayList<Integer>,Boolean> entry: ec.changedECBlock.entrySet()){
         	//对每一个等价类，找到他的pre和next
 			ArrayList<Integer> keyList=entry.getKey();
-			if(debug) {
-				System.out.print("cmp key:");
-				printList(keyList);
-			}
+//			if(debug) {
+//				System.out.print("cmp key:");
+//				printList(keyList);
+//			}
 			
 			
 			long ts = System.currentTimeMillis( );
@@ -67,7 +67,7 @@ public class Handle {
     		}	
         }
 		
-		System.out.println(ec.changedECBlock.size()+"个等价类查找需要时间="+sum+"ms");
+		if(Debug.time_test) System.out.println(ec.changedECBlock.size()+"个等价类查找需要时间="+sum+"ms");
 		
 		if(ec.getRHSName().size()==0) return "invalid";
 		
@@ -93,10 +93,27 @@ public class Handle {
 	
 
 	
-	
+	//参数：有split的等价类，现有的需要进行扩展的OD
 	public ArrayList<OrderDependency> repairSplit(HashMap<ArrayList<Integer>,ECValues> splitEC,OrderDependency od){
-		if(debug) System.out.println("\nrepair split");
+		if(debug) {
+			System.out.println("\nrepair split");
+			od.printOD();
+			System.out.println("split ec size="+splitEC.size());
+			
+			for(Entry<ArrayList<Integer>,ECValues> entry:splitEC.entrySet()) {	
+				System.out.print("\n\nkey: ");
+				for(int i:entry.getKey()) {
+					System.out.print(i+" ");
+				}
+			}
+			
+			
+		}
+		
+		
 		ArrayList<OrderDependency> res=new ArrayList<>();
+		ArrayList<DataStruct> objList=DataInitial.objectList;
+		ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
 		
 		// get the name of all attributes
 		ArrayList<String> attrName=new ArrayList<String>();
@@ -109,41 +126,45 @@ public class Handle {
 			attrName.remove(it);
 		}
 		
+
 		
-		boolean still_split=false;
+		
+		
+		
 		//尝试添加每一个没有被使用过的属性
 		for(String adder:attrName){
 			
 			if(debug) System.out.println("尝试添加属性: "+adder);
 			
+			boolean still_split=false;
 			
 			ArrayList<String> attr=new ArrayList<>();
 			attr.addAll(od.getLHS());
 			attr.add(adder);
-			//尝试在attr上建立等价类
-			EquiClass<InstanceKey> deltaEC=new EquiClass<InstanceKey>(attr,od.getRHS());
 			
+			EquiClass<InstanceKey> narrowSplitEC=new EquiClass<InstanceKey>(attr,od.getRHS());
 			
-//			System.out.print("new ec rhs  ");
-//			for(String x:deltaEC.getRHSName()) {
-//				System.out.print(x+" ");
-//			}
-//			System.out.println();
-//			
-			
-			ArrayList<DataStruct> objList=DataInitial.objectList;
-			ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
+	
 			
 			if(debug) System.out.println("\nsplit tuple");
+			
+			boolean swap=false;
 			//对于每个发生split的等价类
 			for(Entry<ArrayList<Integer>,ECValues> entry:splitEC.entrySet()) {
+				
+				
 				if(debug) {
 					System.out.print("\n\nkey: ");
 					for(int i:entry.getKey()) {
 						System.out.print(i+" ");
 					}
 				}
-				
+
+				//尝试在新属性上建立等价类
+//				ArrayList<String> adderAl=new ArrayList<>();
+//				adderAl.add(adder);
+
+				EquiClass<InstanceKey> deltaEC=new EquiClass<InstanceKey>(attr,od.getRHS());
 				
 				ECValues value=entry.getValue();
 				
@@ -157,29 +178,31 @@ public class Handle {
 					DataStruct data= iObjList.get(itid);
 					deltaEC.addTupleforIncreData(new InstanceKey(attr,data), itid);
 				}
-			}
-			
-			
-			boolean swap=false;
-			
-			//对[新的等价类]表中的每个等价类block，进行查看，只需要查pre（next）
-			for(Entry<InstanceKey,ECValues> entry:deltaEC.ec.entrySet()) {
 				
-				ArrayList<Integer> keyList=entry.getKey().getKeyData();
 				
-				InstanceKey key=new InstanceKey(deltaEC.getAttrName(),keyList);
-	    		
-				ECValues cur=deltaEC.getCur(key);
-	    		ECValues pre=deltaEC.getPre(key);
-	    		
-	    		//pre_max<cur_min,cur_max<next_min
-	    		if(pre!=null&&compare(pre.getMax(),cur.getMin(),deltaEC.getRHSName())>0) {
-	    			swap=true;
-	    			break;
-	    		}else if(compare(cur.getMax(),cur.getMin(),deltaEC.getRHSName())!=0) {
-	    			 still_split=true;
-	    			 deltaEC.splitECBlock.put(key.getKeyData(),new ECValues(cur));	    	
-	    		}	
+				
+				//对[新的等价类]表中的每个等价类block，进行查看，只需要查pre（或者next）
+				for(Entry<InstanceKey,ECValues> dentry:deltaEC.ec.entrySet()) {
+					
+					ArrayList<Integer> keyList=dentry.getKey().getKeyData();
+					
+					InstanceKey key=new InstanceKey(deltaEC.getAttrName(),keyList);
+		    		
+					ECValues cur=deltaEC.getCur(key);
+		    		ECValues pre=deltaEC.getPre(key);
+		    		
+		    		//pre_max<cur_min,cur_max<next_min
+		    		if(pre!=null&&compare(pre.getMax(),cur.getMin(),deltaEC.getRHSName())>0) {
+		    			swap=true;
+		    			break;
+		    		}else if(compare(cur.getMax(),cur.getMin(),deltaEC.getRHSName())!=0) {
+		    			 still_split=true;
+		    			 //narrowSplitEC.splitECBlock.put(key.getKeyData(),new ECValues(cur));	    	
+		    			 //TODO::getkey需要在narrowSplitEC上拿到数据
+		    			 narrowSplitEC.splitECBlock.put(key.getKeyData(),new ECValues(cur));
+		    		}	
+				}
+				if(swap) break;
 			}
 			
 			
@@ -190,11 +213,11 @@ public class Handle {
 				odIncre.getLHS().add(adder);
 				res.add(odIncre);
 				
-			}else if(!swap&&still_split&&deltaEC.splitECBlock.size()!=0&&ECEquals(splitEC,deltaEC.splitECBlock)==false) {
+			}else if(!swap&&still_split&&narrowSplitEC.splitECBlock.size()!=0&&ECEquals(splitEC,narrowSplitEC.splitECBlock)==false) {
 				if (debug) System.out.println("递归查找...");
 				odIncre.getLHS().add(adder);
 				ArrayList<OrderDependency> newOD = new ArrayList<OrderDependency>();
-				newOD=repairSplit(deltaEC.splitECBlock,odIncre);
+				newOD=repairSplit(narrowSplitEC.splitECBlock,odIncre);
 				for (OrderDependency tod : newOD)
 					res.add(new OrderDependency(tod));
 			}

@@ -49,7 +49,7 @@ public static void main(String[] args) {
 		
 		long end = System.currentTimeMillis( );
         diff+=(end-t);
-		System.out.println(objectList.size()+"条数据"+iObjectList.size()+"条增量数据 共耗时"+diff+"毫秒");
+        System.out.println(objectList.size()+"条数据"+iObjectList.size()+"条增量数据 共耗时"+diff+"毫秒");
 		
 		System.out.println("The last od is:");
 		if(!odList.isEmpty())
@@ -71,21 +71,23 @@ public static void main(String[] args) {
 			
 			
 			long t2 = System.currentTimeMillis( );
-			System.out.println("detect");
-			od.printOD();
-			System.out.println("花费"+(t2-t1)+"ms\n");
+			if(Debug.time_test) {
+				System.out.println("detect");
+				od.printOD();
+				System.out.println("花费"+(t2-t1)+"ms\n");
+			}
 			
-			boolean not_valid=false;
+			//boolean not_valid=false;
 			System.out.println(violation_type);
 			ArrayList<String> new_rhs=indexes.ECIndexList.get(ecid).getRHSName();
 			if(new_rhs.size()!=od.getRHS().size()&&!new_rhs.isEmpty()) {
-				incorrectODList.add(new OrderDependency(od));
-				not_valid=true; 
+				//incorrectODList.add(new OrderDependency(od));
+				//not_valid=true; 
 				od.refreshRHS(new_rhs);
 			}
 			
 			if(violation_type.equals("invalid")) {
-				if(!not_valid) incorrectODList.add(new OrderDependency(od));
+				//if(!not_valid) incorrectODList.add(new OrderDependency(od));
 				odList.remove(od);
 				incorrectODList.add(od);
 			}else if(violation_type.equals("split")) {
@@ -95,12 +97,15 @@ public static void main(String[] args) {
 				ArrayList<OrderDependency> res=handle.repairSplit(indexes.ECIndexList.get(ecid).splitECBlock,od);
 				
 				long t4 = System.currentTimeMillis( );
-				System.out.println("split");
-				od.printOD();
-				System.out.println("花费"+(t4-t3)+"ms\n");
+				if(Debug.time_test) {
+					System.out.println("split");
+					od.printOD();
+					System.out.println("花费"+(t4-t3)+"ms\n");
+				}
 				
 				
-				if(!not_valid) incorrectODList.add(new OrderDependency(od));
+				//if(!not_valid) //只有发生split的时候才进行enrich
+				incorrectODList.add(new OrderDependency(od));
 				odList.remove(od);
 				if(res!=null) {
 					odList.addAll(res);

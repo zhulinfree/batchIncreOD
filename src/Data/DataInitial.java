@@ -7,7 +7,7 @@ import OD.*;
 public class DataInitial {
 	
 	private final static String dataFileName=new String("8_500k.csv");
-	private final static String increFileName=new String("8_30k.csv");
+	private final static String increFileName=new String("8_20k.csv");
 	private final static String odFileName=new String("od2.txt");
 	public static CSVtoDataObject cdo = new CSVtoDataObject();
 	private static CSVtoDataObject ind=new CSVtoDataObject();

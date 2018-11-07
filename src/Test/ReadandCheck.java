@@ -34,19 +34,23 @@ public static void main(String[] args) {
 		checkandRepair(originalODList);
 		
 		
-		
 		enrichment();
+		
+		long t = System.currentTimeMillis( );
+		long diff = t - start;
 		//在enrich之前需要更新索引结构
 		indexes.buildIndexes(enrichODList);
 		indexes.updateIndexes(enrichODList);
 		
 		if(!enrichODList.isEmpty()) odList.addAll(enrichODList);
+		t = System.currentTimeMillis( );
 		checkandRepair(enrichODList);
 		
 		
 		long end = System.currentTimeMillis( );
-        long diff = end - start;
+        diff+=(end-t);
 		System.out.println(objectList.size()+"条数据"+iObjectList.size()+"条增量数据 共耗时"+diff+"毫秒");
+		
 		System.out.println("The last od is:");
 		if(!odList.isEmpty())
 			for(OrderDependency od:odList) od.printOD();

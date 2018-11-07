@@ -64,15 +64,15 @@ public class Index {
 		
 	
 	//getCur 
-	public ECRHS getCur(InstanceKey key,int indexId){
+	public ECValues getCur(InstanceKey key,int indexId){
 		return ECIndexList.get(indexId).getCur(key);
 	}
 	
-	public ECRHS getPre(InstanceKey key,int indexId){
+	public ECValues getPre(InstanceKey key,int indexId){
 		return ECIndexList.get(indexId).getPre(key);
 	}
 	
-	public ECRHS getNext(InstanceKey key,int indexId){
+	public ECValues getNext(InstanceKey key,int indexId){
 		return ECIndexList.get(indexId).getNext(key);
 	}
 	

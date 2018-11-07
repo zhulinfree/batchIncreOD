@@ -7,7 +7,7 @@ import java.util.Map.Entry;
 import BplusTree.InstanceKey;
 import Data.DataInitial;
 import Data.DataStruct;
-import EquivalenceClass.ECRHS;
+import EquivalenceClass.ECValues;
 import EquivalenceClass.EquiClass;
 import EquivalenceClass.Index;
 import Test.*;
@@ -32,6 +32,7 @@ public class Handle {
 		
 		//int ecid=getECId(od.getLHS());
 		EquiClass<InstanceKey> ec=inds.ECIndexList.get(ecid);
+		long sum=0;
 		
 		for(Entry<ArrayList<Integer>,Boolean> entry: ec.changedECBlock.entrySet()){
         	//对每一个等价类，找到他的pre和next
@@ -41,13 +42,20 @@ public class Handle {
 				printList(keyList);
 			}
 			
-        	InstanceKey key=new InstanceKey(ec.getAttrName(),keyList);
-    		ECRHS cur=ec.getCur(key);
-    		ECRHS pre=ec.getPre(key);
-    		ECRHS next=ec.getNext(key);
+			
+			long ts = System.currentTimeMillis( );
+        	
+			InstanceKey key=new InstanceKey(ec.getAttrName(),keyList);
+    		ECValues cur=ec.getCur(key);
+    		ECValues pre=ec.getPre(key);
+    		ECValues next=ec.getNext(key);
+    		
+    		long te = System.currentTimeMillis( );
+    		sum+=(te-ts);
+    		
     		if(!swap&&compare(cur.getMax(),cur.getMin(),ec.getRHSName())!=0) {
     			 split=true;
-    			 ec.splitECBlock.put(key.getKeyData(),new ECRHS(cur));
+    			 ec.splitECBlock.put(key.getKeyData(),new ECValues(cur));
     			 
     		}
     		
@@ -58,6 +66,9 @@ public class Handle {
     			ec.splitECBlock.clear();
     		}	
         }
+		
+		System.out.println(ec.changedECBlock.size()+"个等价类查找需要时间="+sum+"ms");
+		
 		if(ec.getRHSName().size()==0) return "invalid";
 		
 		//swap会导致split，所以还需要重新确认下是否是真的spit还是已经解决了
@@ -67,13 +78,14 @@ public class Handle {
 			for(Entry<ArrayList<Integer>,Boolean> entry: ec.changedECBlock.entrySet()){
 				ArrayList<Integer> keyList=entry.getKey();
 	        	InstanceKey key=new InstanceKey(ec.getAttrName(),keyList);
-	    		ECRHS cur=ec.getCur(key);
+	    		ECValues cur=ec.getCur(key);
 	    		if(compare(cur.getMax(),cur.getMin(),ec.getRHSName())!=0) {
 	    			split=true;
-	    			ec.splitECBlock.put(key.getKeyData(),new ECRHS(cur));
+	    			ec.splitECBlock.put(key.getKeyData(),new ECValues(cur));
 	    		}
 			}
 		}
+		
 		if(split) return "split";
 		return "valid";
 		
@@ -82,7 +94,7 @@ public class Handle {
 
 	
 	
-	public ArrayList<OrderDependency> repairSplit(HashMap<ArrayList<Integer>,ECRHS> splitEC,OrderDependency od){
+	public ArrayList<OrderDependency> repairSplit(HashMap<ArrayList<Integer>,ECValues> splitEC,OrderDependency od){
 		if(debug) System.out.println("\nrepair split");
 		ArrayList<OrderDependency> res=new ArrayList<>();
 		
@@ -124,7 +136,7 @@ public class Handle {
 			
 			if(debug) System.out.println("\nsplit tuple");
 			//对于每个发生split的等价类
-			for(Entry<ArrayList<Integer>,ECRHS> entry:splitEC.entrySet()) {
+			for(Entry<ArrayList<Integer>,ECValues> entry:splitEC.entrySet()) {
 				if(debug) {
 					System.out.print("\n\nkey: ");
 					for(int i:entry.getKey()) {
@@ -133,7 +145,7 @@ public class Handle {
 				}
 				
 				
-				ECRHS value=entry.getValue();
+				ECValues value=entry.getValue();
 				
 				if(debug) value.print();
 				//建立等价类
@@ -151,14 +163,14 @@ public class Handle {
 			boolean swap=false;
 			
 			//对[新的等价类]表中的每个等价类block，进行查看，只需要查pre（next）
-			for(Entry<InstanceKey,ECRHS> entry:deltaEC.ec.entrySet()) {
+			for(Entry<InstanceKey,ECValues> entry:deltaEC.ec.entrySet()) {
 				
 				ArrayList<Integer> keyList=entry.getKey().getKeyData();
 				
 				InstanceKey key=new InstanceKey(deltaEC.getAttrName(),keyList);
 	    		
-				ECRHS cur=deltaEC.getCur(key);
-	    		ECRHS pre=deltaEC.getPre(key);
+				ECValues cur=deltaEC.getCur(key);
+	    		ECValues pre=deltaEC.getPre(key);
 	    		
 	    		//pre_max<cur_min,cur_max<next_min
 	    		if(pre!=null&&compare(pre.getMax(),cur.getMin(),deltaEC.getRHSName())>0) {
@@ -166,7 +178,7 @@ public class Handle {
 	    			break;
 	    		}else if(compare(cur.getMax(),cur.getMin(),deltaEC.getRHSName())!=0) {
 	    			 still_split=true;
-	    			 deltaEC.splitECBlock.put(key.getKeyData(),new ECRHS(cur));	    	
+	    			 deltaEC.splitECBlock.put(key.getKeyData(),new ECValues(cur));	    	
 	    		}	
 			}
 			
@@ -214,16 +226,16 @@ public class Handle {
 	
 	
 	
-	private boolean ECEquals(HashMap<ArrayList<Integer>,ECRHS> e1,HashMap<ArrayList<Integer>,ECRHS> e2) {
+	private boolean ECEquals(HashMap<ArrayList<Integer>,ECValues> e1,HashMap<ArrayList<Integer>,ECValues> e2) {
 		int count1=0,count2=0;
-		for(Entry<ArrayList<Integer>,ECRHS> entry:e1.entrySet()) {
-			ECRHS v1=entry.getValue();
+		for(Entry<ArrayList<Integer>,ECValues> entry:e1.entrySet()) {
+			ECValues v1=entry.getValue();
 			count1+=v1.origin_tids.size();
 			count1+=v1.incre_tids.size();
 		}
 		
-		for(Entry<ArrayList<Integer>,ECRHS> entry:e2.entrySet()) {
-			ECRHS v2=entry.getValue();
+		for(Entry<ArrayList<Integer>,ECValues> entry:e2.entrySet()) {
+			ECValues v2=entry.getValue();
 			count2+=v2.origin_tids.size();
 			count2+=v2.incre_tids.size();
 		}
@@ -237,11 +249,11 @@ public class Handle {
 	
 	
 //判断两个等价类是不是相等	
-//	private boolean ECEquals(HashMap<ArrayList<Integer>,ECRHS> e1,HashMap<ArrayList<Integer>,ECRHS> e2) {
+//	private boolean ECEquals(HashMap<ArrayList<Integer>,ECValues> e1,HashMap<ArrayList<Integer>,ECValues> e2) {
 //		if(e1.size()!=e2.size()) return false;
 //		
-//		for(Entry<ArrayList<Integer>,ECRHS> entry:e1.entrySet()) {
-//			ECRHS v2=e2.getOrDefault(entry.getKey(),null);
+//		for(Entry<ArrayList<Integer>,ECValues> entry:e1.entrySet()) {
+//			ECValues v2=e2.getOrDefault(entry.getKey(),null);
 //			if(v2==null) return false;
 //			else if(v2.equals(entry.getValue())==false) return false;
 //			

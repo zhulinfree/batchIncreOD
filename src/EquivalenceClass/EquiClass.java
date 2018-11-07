@@ -16,13 +16,13 @@ public class EquiClass <K extends Comparable<K>>{
 	private ArrayList<String> RHS=new ArrayList<>();
 	private BplusTree<K,ArrayList<Integer>> keyTree;
 	private int treeOrder=10;
-	public HashMap<K,ECRHS> ec=new HashMap<>();
+	public HashMap<K,ECValues> ec=new HashMap<>();
 	
 	//在index中进行更新
 	public HashMap<ArrayList<Integer>,Boolean> changedECBlock=new HashMap<>();
 	
 	//引起split的块，在handle中更新
-	public HashMap<ArrayList<Integer>,ECRHS> splitECBlock=new HashMap<>();
+	public HashMap<ArrayList<Integer>,ECValues> splitECBlock=new HashMap<>();
 	
 	
 	public  EquiClass (ArrayList<String> indList,ArrayList<String> rhs){
@@ -43,11 +43,11 @@ public class EquiClass <K extends Comparable<K>>{
 	public void addTupleforOriginData(K key,int tid) {
 		
 		//找到当前等价类
-		ECRHS findEC=ec.get(key);
+		ECValues findEC=ec.get(key);
 		
 		if(findEC==null) {
 			keyTree.insertOrUpdate(key, tid);
-			ECRHS in=new ECRHS();
+			ECValues in=new ECValues();
 			in.addforOriginData(tid,RHS);
 			ec.put(key, in);
 			return;
@@ -60,11 +60,11 @@ public class EquiClass <K extends Comparable<K>>{
 	public void addTupleforIncreData(K key,int tid) {
 		
 		//找到当前等价类
-		ECRHS findEC=ec.get(key);
+		ECValues findEC=ec.get(key);
 		
 		if(findEC==null) {
 			keyTree.insertOrUpdate(key, tid);
-			ECRHS in=new ECRHS();
+			ECValues in=new ECValues();
 			in.addforIncreData(tid,RHS);
 			ec.put(key, in);
 			return;
@@ -74,17 +74,17 @@ public class EquiClass <K extends Comparable<K>>{
 		
 	}
 	
-	public ECRHS getCur(K key){
+	public ECValues getCur(K key){
 		return ec.get(key);
 	}
 	
 	
-	public ECRHS getPre(K key){
+	public ECValues getPre(K key){
 		K pre=getPreKey(key);
 		return pre==null?null:ec.get(pre);
 	}
 	
-	public ECRHS getNext(K key){
+	public ECValues getNext(K key){
 		K next=getNextKey(key);
 		return next==null?null:ec.get(next);
 	}
@@ -130,7 +130,7 @@ public class EquiClass <K extends Comparable<K>>{
 	
 	public void print() {
 		//System.out.println("\n通过Map.entrySet遍历key和value");  
-        for(Entry<K,ECRHS> entry: ec.entrySet()){
+        for(Entry<K,ECValues> entry: ec.entrySet()){
          //System.out.println("Key: "+ entry.getKey()+ " Value: "+entry.getValue());
         	InstanceKey key=(InstanceKey)entry.getKey();
         	System.out.print("\n\nKey: ");

@@ -1,0 +1,12 @@
+OriginAirportSeqID->OriginAirportID
+Origin->OriginAirportID
+OriginAirportID->OriginAirportSeqID
+Origin->OriginAirportSeqID
+OriginAirportID->Origin
+OriginAirportSeqID->Origin
+OriginAirportID->Origin,OriginCityMarketID
+OriginAirportSeqID->Origin,OriginCityMarketID
+OriginAirportSeqID->OriginAirportID,OriginCityMarketID
+Origin->OriginAirportID,OriginCityMarketID
+OriginAirportID->OriginAirportSeqID,OriginCityMarketID
+Origin->OriginAirportSeqID,OriginCityMarketID

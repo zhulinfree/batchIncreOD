@@ -47,7 +47,9 @@ public class DataStruct{
 		return Integer.toString(colData.get(attrName_to_colNumber.get(name)));
 	}
 	
-	
+	public int getByName_int(String name) {
+		return colData.get(attrName_to_colNumber.get(name));
+	}
 	
 	//用以输出某些
 	public ArrayList<Integer> getbatchNumberByName(List<String> attrNames){

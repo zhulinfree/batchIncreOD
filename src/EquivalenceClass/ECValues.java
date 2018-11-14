@@ -15,7 +15,7 @@ public class ECValues {
 	private ArrayList<DataStruct> objList=new ArrayList<>(),
 			iObjList=new ArrayList<>();
 	
-	
+	private ArrayList<String> RHS=new ArrayList<>();
 	
 	public ECValues() {
 		objList=DataInitial.objectList;
@@ -26,51 +26,80 @@ public class ECValues {
 	public ECValues(ECValues cp) {
 		objList=DataInitial.objectList;
 		iObjList=DataInitial.iObjectList;
-		if(cp.origin_tids!=null) this.origin_tids.addAll(cp.origin_tids);
-		if(cp.incre_tids!=null) this.incre_tids.addAll(cp.incre_tids);
-		this.max.addAll(cp.max);
-		this.min.addAll(cp.min);
+		if(!cp.origin_tids.isEmpty()) this.origin_tids.addAll(cp.origin_tids);
+		if(!cp.incre_tids.isEmpty()) this.incre_tids.addAll(cp.incre_tids);
+		if(!cp.max.isEmpty()) this.max.addAll(cp.max);
+		if(!cp.max.isEmpty()) this.min.addAll(cp.min);
 	}
 	
 
 	//flag用来判断是否是增量中的等价类
-	public void addforOriginData(int tid,ArrayList<String> rhsAttr){
+	public void addforOriginData(int tid){
 		
 		origin_tids.add(tid);
 		
-		if(origin_tids.size()<=1) {
+//		if(origin_tids.size()<=1) {
+//			ArrayList<Integer> adder=new ArrayList<>();
+//			for(String attr:rhsAttr) {
+//				adder.add(Integer.parseInt(objList.get(tid).getByName(attr)));
+//			}
+//			max=refresh(adder);
+//			min=refresh(adder);
+//		}
+		
+		
+	}
+	
+	//flag用来判断是否是增量中的等价类
+	public void addforIncreData(int tid){
+		
+		incre_tids.add(tid);
+
+//		ArrayList<Integer> adder=new ArrayList<>();
+//		for(String attr:rhsAttr) {
+//			adder.add(Integer.parseInt(iObjList.get(tid).getByName(attr)));
+//		}
+//		if(max.size()!=0&&compare(max,adder,rhsAttr)<0||max.size()==0) {
+//			max.clear();
+//			max=refresh(adder);
+//		}
+//		if(min.size()!=0&&compare(min,adder,rhsAttr)>0||min.size()==0) {
+//			min.clear();
+//			min=refresh(adder);
+//		}
+		
+	}
+	
+	public void calMax_and_Min(ArrayList<String> rhsAttr) {
+		setRHSName(rhsAttr);
+		
+		//原始数据集右边相等，所以只需要计算一次
+		if(origin_tids.size()>=1) {
 			ArrayList<Integer> adder=new ArrayList<>();
 			for(String attr:rhsAttr) {
-				adder.add(Integer.parseInt(objList.get(tid).getByName(attr)));
+				adder.add(Integer.parseInt(objList.get(origin_tids.get(0)).getByName(attr)));
 			}
 			max=refresh(adder);
 			min=refresh(adder);
 		}
 		
-		
-	}
-	
-	//flag用来判断是否是增量中的等价类
-	public void addforIncreData(int tid,ArrayList<String> rhsAttr){
-		
-		incre_tids.add(tid);
-
-		ArrayList<Integer> adder=new ArrayList<>();
-		for(String attr:rhsAttr) {
-			adder.add(Integer.parseInt(iObjList.get(tid).getByName(attr)));
-		}
-		if(max.size()!=0&&compare(max,adder,rhsAttr)<0||max.size()==0) {
-			max.clear();
-			max=refresh(adder);
-		}
-		if(min.size()!=0&&compare(min,adder,rhsAttr)>0||min.size()==0) {
-			min.clear();
-			min=refresh(adder);
+		for(int tid:incre_tids) {
+			ArrayList<Integer> newer=new ArrayList<>();
+			for(String attr:rhsAttr) {
+				newer.add(Integer.parseInt(iObjList.get(tid).getByName(attr)));
+			}
+			if(max.size()!=0&&max.size()==rhsAttr.size()&&compare(max,newer,rhsAttr)<0||max.size()==0) {
+				max.clear();
+				max=refresh(newer);
+			}
+			if(min.size()!=0&&min.size()==rhsAttr.size()&&compare(min,newer,rhsAttr)>0||min.size()==0) {
+				min.clear();
+				min=refresh(newer);
+			}
+			
 		}
 		
 	}
-	
-
 	
 	
 	private ArrayList<Integer> refresh(ArrayList<Integer> tp){
@@ -97,6 +126,18 @@ public class ECValues {
 	public ArrayList<Integer> getMin(){
 		return min;
 	}
+	
+	public void setRHSName(ArrayList<String> rhs) {
+		RHS.clear();
+		for(String s:rhs) {
+			RHS.add(new String(s));
+		}
+	}
+	
+	public ArrayList<String> getRHSName() {
+		return RHS;
+	}
+	
 	
 	public boolean equals(ECValues eq) {
 		if(eq.origin_tids.size()!=this.origin_tids.size()) return false;

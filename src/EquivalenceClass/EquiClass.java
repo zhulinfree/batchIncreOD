@@ -8,14 +8,16 @@ import BplusTree.BplusTree;
 import BplusTree.InstanceKey;
 import OD.OrderDependency;
 
+//如，建立AB的等价类（ec是个关于AB中所有distinct key 的集合）
 public class EquiClass <K extends Comparable<K>>{
 
 	//private ArrayList<K> keySortedList=new ArrayList<>();
 	//保存当前等价类所需要的属性名字
-	private ArrayList<String> attrName=new ArrayList<>();
-	private ArrayList<String> RHS=new ArrayList<>();
-	private BplusTree<K,ArrayList<Integer>> keyTree;
 	private int treeOrder=10;
+	
+	private ArrayList<String> attrName=new ArrayList<>();
+	private BplusTree<K,ArrayList<Integer>> keyTree;
+	
 	public HashMap<K,ECValues> ec=new HashMap<>();
 	
 	//在index中进行更新
@@ -25,16 +27,16 @@ public class EquiClass <K extends Comparable<K>>{
 	public HashMap<ArrayList<Integer>,ECValues> splitECBlock=new HashMap<>();
 	
 	
-	public  EquiClass (ArrayList<String> indList,ArrayList<String> rhs){
-		this.setAttrName(indList);
-		this.setRHSName(rhs);
+	public  EquiClass (ArrayList<String> lhs){
+		this.setAttrName(lhs);
+		//this.setRHSName(rhs);
 		keyTree=new BplusTree<K,ArrayList<Integer>>(treeOrder);
 		
 	}
 	
 	public EquiClass(OrderDependency od) {
 		this.setAttrName(od.getLHS());
-		this.setRHSName(od.getRHS());
+		//this.setRHSName(od.getRHS());
 		keyTree=new BplusTree<K,ArrayList<Integer>>(treeOrder);
 		
 	}
@@ -48,12 +50,12 @@ public class EquiClass <K extends Comparable<K>>{
 		if(findEC==null) {
 			keyTree.insertOrUpdate(key, tid);
 			ECValues in=new ECValues();
-			in.addforOriginData(tid,RHS);
+			in.addforOriginData(tid);
 			ec.put(key, in);
 			return;
 		}
 		
-		findEC.addforOriginData(tid,RHS);
+		findEC.addforOriginData(tid);
 		
 	}
 	//K key
@@ -65,12 +67,12 @@ public class EquiClass <K extends Comparable<K>>{
 		if(findEC==null) {
 			keyTree.insertOrUpdate(key, tid);
 			ECValues in=new ECValues();
-			in.addforIncreData(tid,RHS);
+			in.addforIncreData(tid);
 			ec.put(key, in);
 			return;
 		}
 		
-		findEC.addforIncreData(tid,RHS);
+		findEC.addforIncreData(tid);
 		
 	}
 	
@@ -105,16 +107,16 @@ public class EquiClass <K extends Comparable<K>>{
 		return attrName;
 	}
 	
-	public void setRHSName(ArrayList<String> rhs) {
-		RHS.clear();
-		for(String s:rhs) {
-			RHS.add(s);
-		}
-	}
-	
-	public ArrayList<String> getRHSName() {
-		return RHS;
-	}
+//	public void setRHSName(ArrayList<String> rhs) {
+//		RHS.clear();
+//		for(String s:rhs) {
+//			RHS.add(s);
+//		}
+//	}
+//	
+//	public ArrayList<String> getRHSName() {
+//		return RHS;
+//	}
 	
 	private K getPreKey(K key) {
 		return keyTree.getPre(key);
@@ -124,9 +126,9 @@ public class EquiClass <K extends Comparable<K>>{
 	}
 	
 	
-	public void removeRHSTail() {
-		RHS.remove(RHS.size()-1);
-	}
+//	public void removeRHSTail() {
+//		RHS.remove(RHS.size()-1);
+//	}
 	
 	public void print() {
 		//System.out.println("\n通过Map.entrySet遍历key和value");  

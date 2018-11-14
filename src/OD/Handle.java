@@ -10,6 +10,8 @@ import Data.DataStruct;
 import EquivalenceClass.ECValues;
 import EquivalenceClass.EquiClass;
 import EquivalenceClass.Index;
+import EquivalenceClass.SplitEC;
+import EquivalenceClass.SplitECforAllODList;
 import Test.*;
 
 
@@ -17,6 +19,10 @@ import Test.*;
 public class Handle {
 	public static Index inds=new Index();
 	private boolean debug;
+	
+	
+	
+	
 	public Handle() {
 		//inds=TestforData.indexes;
 		inds=ReadandCheck.indexes;
@@ -26,13 +32,15 @@ public class Handle {
 	
 	
 	
-	//有swap直接减属性解决
-	public String detectOD(int ecid) {
-		boolean swap=false,split=false;
+	//检测是否有violation。返回violation的类型
+	public String detectOD(int ecid,OrderDependency od) {
 		
-		//int ecid=getECId(od.getLHS());
 		EquiClass<InstanceKey> ec=inds.ECIndexList.get(ecid);
-		long sum=0;
+		
+		boolean split=false;
+		//用于判断当前索引是不是比od的左边短
+		boolean is_short_index=!listEquals(od.getLHS(),ec.getAttrName())&&isPrefix(od.getLHS(),ec.getAttrName());
+		
 		
 		for(Entry<ArrayList<Integer>,Boolean> entry: ec.changedECBlock.entrySet()){
         	//对每一个等价类，找到他的pre和next
@@ -43,47 +51,107 @@ public class Handle {
 //			}
 			
 			
-			long ts = System.currentTimeMillis( );
-        	
+			
 			InstanceKey key=new InstanceKey(ec.getAttrName(),keyList);
     		ECValues cur=ec.getCur(key);
     		ECValues pre=ec.getPre(key);
     		ECValues next=ec.getNext(key);
     		
-    		long te = System.currentTimeMillis( );
-    		sum+=(te-ts);
+    		//计算每个块在od的RHS上的最大最小值。
+    		if(!isPrefix(cur.getRHSName(),od.getRHS())||cur.getMax().isEmpty()) 
+    			cur.calMax_and_Min(od.getRHS());
+    		if(pre!=null&&(!isPrefix(pre.getRHSName(),od.getRHS())||pre.getMax().isEmpty()))
+    			pre.calMax_and_Min(od.getRHS());
+    		if(next!=null&&(!isPrefix(next.getRHSName(),od.getRHS())||next.getMax().isEmpty()))
+    			next.calMax_and_Min(od.getRHS());
     		
-    		if(!swap&&compare(cur.getMax(),cur.getMin(),ec.getRHSName())!=0) {
+    		if(compare(cur.getMax(),cur.getMin(),od.getRHS())!=0) {
     			 split=true;
-    			 ec.splitECBlock.put(key.getKeyData(),new ECValues(cur));
+    			 //如果当前索引刚好跟od的左边匹配，就要记录split的地方了
+    			 if(!is_short_index) 
+    				 DataInitial.split_ec_lists.update(od,keyList,cur);
     			 
     		}
     		
-    		//pre_max<cur_min,cur_max<next_min
-    		while(ec.getRHSName().size()>0&&(pre!=null&&compare(pre.getMax(),cur.getMin(),ec.getRHSName())>0||next!=null&&compare(cur.getMax(),next.getMin(),ec.getRHSName())>0)) {
-    			ec.removeRHSTail();
-    			swap=true;
-    			ec.splitECBlock.clear();
-    		}	
+    		//需要pre_max<cur_min,cur_max<next_min
+    		if((pre!=null&&compare(pre.getMax(),cur.getMin(),od.getRHS())>0||next!=null&&compare(cur.getMax(),next.getMin(),od.getRHS())>0)) {
+    			if(is_short_index) DataInitial.split_ec_lists.clearSplitECBlock(od);
+    			return "swap";
+    		}
+    		
+    		//对于短索引来说，重新在cur里面重新建立等价类，需要在ABC上看是否有swap和split
+    		if(is_short_index) {
+    			String violation=narrowDetect(cur,od);
+    			if(violation.equals("swap")) return "swap";
+    			//else if(violation.equals("split")) split=true;
+    			//不需要查split，因为前面查大块就能查出来
+    		}
+    		
         }
 		
-		if(Debug.time_test) System.out.println(ec.changedECBlock.size()+"个等价类查找需要时间="+sum+"ms");
+		if(split) return "split";
+		return "valid";
 		
-		if(ec.getRHSName().size()==0) return "invalid";
+	}
+	
+	
+	//判断某新块(有incredata)上 的，是否存在violation（这是在短索引的某一个等价类上操作）
+	private String narrowDetect(ECValues value,OrderDependency od) {
 		
-		//swap会导致split，所以还需要重新确认下是否是真的spit还是已经解决了
-		if(swap) {
-			split=false;
-			//ec.splitECBlock.clear();
-			for(Entry<ArrayList<Integer>,Boolean> entry: ec.changedECBlock.entrySet()){
-				ArrayList<Integer> keyList=entry.getKey();
-	        	InstanceKey key=new InstanceKey(ec.getAttrName(),keyList);
-	    		ECValues cur=ec.getCur(key);
-	    		if(compare(cur.getMax(),cur.getMin(),ec.getRHSName())!=0) {
-	    			split=true;
-	    			ec.splitECBlock.put(key.getKeyData(),new ECValues(cur));
-	    		}
-			}
+		ArrayList<DataStruct> objList=DataInitial.objectList;
+		ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
+		
+		EquiClass<InstanceKey> narrowEC=new EquiClass<InstanceKey>(od.getLHS());
+		
+		for(int otid:value.origin_tids) {
+			DataStruct data= objList.get(otid);
+			narrowEC.addTupleforOriginData(new InstanceKey(od.getLHS(),data), otid);
+		}
+		for(int itid:value.incre_tids) {
+			DataStruct data= iObjList.get(itid);
+			InstanceKey key=new InstanceKey(od.getLHS(),data);
+			narrowEC.addTupleforIncreData(key, itid);
+			narrowEC.changedECBlock.put(key.getKeyData(),true);
+		}
+		boolean split=false;
+		for(Entry<ArrayList<Integer>,Boolean> entry: narrowEC.changedECBlock.entrySet()) {
+			
+			ArrayList<Integer> keyList=entry.getKey();
+			
+			InstanceKey key=new InstanceKey(narrowEC.getAttrName(),keyList);
+    		ECValues cur=narrowEC.getCur(key);
+    		ECValues pre=narrowEC.getPre(key); 
+    		ECValues next=narrowEC.getNext(key);
+    		
+    		//计算每个块在od的RHS上的最大最小值。
+			cur.calMax_and_Min(od.getRHS());		
+			pre.calMax_and_Min(od.getRHS());
+			next.calMax_and_Min(od.getRHS());
+    		
+    	
+    		
+    		if(compare(cur.getMax(),cur.getMin(),od.getRHS())!=0) {
+    			 split=true;
+    			 DataInitial.split_ec_lists.update(od,keyList,cur);
+
+    			 if(debug) {
+    				 System.out.print("insert split ec list for :");
+        			 od.printOD();
+    			 }
+    			 
+    		}
+    		
+    		//需要pre_max<cur_min,cur_max<next_min
+    		if((pre!=null&&compare(pre.getMax(),cur.getMin(),od.getRHS())>0||next!=null&&compare(cur.getMax(),next.getMin(),od.getRHS())>0)) {
+    			DataInitial.split_ec_lists.clearSplitECBlock(od);
+    			if(debug) {
+   				 	System.out.print("insert split ec list for :");
+   				 	od.printOD();
+   			 	}
+    			return "swap";
+    		}
+			
+			
 		}
 		
 		if(split) return "split";
@@ -91,27 +159,33 @@ public class Handle {
 		
 	}
 	
+	
+	
+
+	
+	
 
 	
 	//参数：有split的等价类，现有的需要进行扩展的OD
 	public ArrayList<OrderDependency> repairSplit(HashMap<ArrayList<Integer>,ECValues> splitEC,OrderDependency od){
+		
 		if(debug) {
-			System.out.println("\nrepair split");
+			System.out.print("\nrepair split： ");
 			od.printOD();
 			System.out.println("split ec size="+splitEC.size());
 			
 			for(Entry<ArrayList<Integer>,ECValues> entry:splitEC.entrySet()) {	
-				System.out.print("\n\nkey: ");
+				System.out.print("\nkey: ");
 				for(int i:entry.getKey()) {
 					System.out.print(i+" ");
 				}
 			}
 			
+			System.out.println();
 			
 		}
 		
-		
-		ArrayList<OrderDependency> res=new ArrayList<>();
+		ArrayList<OrderDependency> res=new ArrayList<>();	
 		ArrayList<DataStruct> objList=DataInitial.objectList;
 		ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
 		
@@ -127,14 +201,11 @@ public class Handle {
 		}
 		
 
-		
-		
-		
-		
+
 		//尝试添加每一个没有被使用过的属性
 		for(String adder:attrName){
 			
-			if(debug) System.out.println("尝试添加属性: "+adder);
+			if(debug) System.out.println("\n...............\n尝试添加属性: "+adder);
 			
 			boolean still_split=false;
 			
@@ -142,7 +213,7 @@ public class Handle {
 			attr.addAll(od.getLHS());
 			attr.add(adder);
 			
-			EquiClass<InstanceKey> narrowSplitEC=new EquiClass<InstanceKey>(attr,od.getRHS());
+			EquiClass<InstanceKey> narrowSplitEC=new EquiClass<InstanceKey>(attr);
 			
 	
 			
@@ -154,21 +225,30 @@ public class Handle {
 				
 				
 				if(debug) {
-					System.out.print("\n\nkey: ");
-					for(int i:entry.getKey()) {
-						System.out.print(i+" ");
+					System.out.print("\n处理 ");
+					for(String s:od.getLHS()) {
+						System.out.print(s+" ");
 					}
+					System.out.print("=");
+					for(int i:entry.getKey()) {
+						System.out.print(" "+i);
+					}
+					System.out.println(" 的等价类");
 				}
 
 				//尝试在新属性上建立等价类
 //				ArrayList<String> adderAl=new ArrayList<>();
 //				adderAl.add(adder);
 
-				EquiClass<InstanceKey> deltaEC=new EquiClass<InstanceKey>(attr,od.getRHS());
+				EquiClass<InstanceKey> deltaEC=new EquiClass<InstanceKey>(attr);
 				
 				ECValues value=entry.getValue();
 				
-				if(debug) value.print();
+				if(debug) {
+					System.out.println("\n\n<<<<<<<<<<<<<<<<<");
+					value.print();
+					System.out.println(">>>>>>>>>>>>>>>>>\n\n");
+				}
 				//建立等价类
 				for(int otid:value.origin_tids) {
 					DataStruct data= objList.get(otid);
@@ -191,11 +271,41 @@ public class Handle {
 					ECValues cur=deltaEC.getCur(key);
 		    		ECValues pre=deltaEC.getPre(key);
 		    		
+		    		
+		    		
+		    		
+		    		
+		    		
+		    		
+		    		cur.calMax_and_Min(od.getRHS());		
+					if(pre!=null) pre.calMax_and_Min(od.getRHS());
+		    		
+					if(debug) {
+		    			System.out.println("<<<<<<<<<<\nnarrow等价类中的等价类：");
+						for(String s:attr) {
+							System.out.print(s+" ");
+						}
+						System.out.print("=");
+						
+						for(int i:keyList) {
+							System.out.print(" "+i);
+						}
+						System.out.println();
+						cur.print();
+						System.out.println(">>>>>>>>>>\n");
+		    		}
+		    		
+		    		
 		    		//pre_max<cur_min,cur_max<next_min
-		    		if(pre!=null&&compare(pre.getMax(),cur.getMin(),deltaEC.getRHSName())>0) {
+		    		if(pre!=null&&compare(pre.getMax(),cur.getMin(),od.getRHS())>0) {
+//		    			System.out.println("pre 最大值： ");
+//		    			printList(pre.getMax());
+//		    			System.out.println("cur 最小值： ");
+//		    			printList(cur.getMin());
+		    			//System.out.println("swapppppppppppppppppppp");
 		    			swap=true;
 		    			break;
-		    		}else if(compare(cur.getMax(),cur.getMin(),deltaEC.getRHSName())!=0) {
+		    		}else if(compare(cur.getMax(),cur.getMin(),od.getRHS())!=0) {
 		    			 still_split=true;
 		    			 //narrowSplitEC.splitECBlock.put(key.getKeyData(),new ECValues(cur));	    	
 		    			 //TODO::getkey需要在narrowSplitEC上拿到数据
@@ -225,6 +335,7 @@ public class Handle {
 			
 		}
 		
+		
 		return res;
 	}
 	
@@ -247,6 +358,26 @@ public class Handle {
 		System.out.println();
 	}
 	
+	
+	//判断两个list的值是不是相等（属性名是不是相等）
+	private boolean listEquals(ArrayList<String> l1,ArrayList<String> l2) {
+		if(l1.size()!=l2.size()) return false;
+		for(int i=0;i<l1.size();i++) {
+			if(l1.get(i).equals(l2.get(i))==false) return false;
+		}
+		
+		return true;
+	}
+	
+	
+	//判断l2是否是l1的前缀。比如l2=AB,L1=ABC
+	private boolean isPrefix(ArrayList<String> l1,ArrayList<String> l2) {
+		if(l1.isEmpty()||l1.size()==0||l2.size()>l1.size()) return false;
+		for(int i=0;i<l2.size();i++) {
+			if(l1.get(i).equals(l2.get(i))==false) return false;
+		}
+		return true;
+	}
 	
 	
 	private boolean ECEquals(HashMap<ArrayList<Integer>,ECValues> e1,HashMap<ArrayList<Integer>,ECValues> e2) {

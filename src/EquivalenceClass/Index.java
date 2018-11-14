@@ -21,14 +21,14 @@ public class Index {
 	}
 	
 	
-	public EquiClass<InstanceKey> buildIndex(ArrayList<String> indexList,ArrayList<String> rhs) {	
+	public EquiClass<InstanceKey> buildIndex(ArrayList<String> indexList) {	
 		if(debug) {
 			System.out.print("building Index in ");
 			for(String s:indexList) System.out.print(s+" ");
 			System.out.println();
 		}
 		ArrayList<DataStruct> objList=DataInitial.objectList;
-		EquiClass<InstanceKey> index=new EquiClass<InstanceKey>(indexList,rhs);
+		EquiClass<InstanceKey> index=new EquiClass<InstanceKey>(indexList);
 		for (int i=0;i< objList.size();i++) {
 			DataStruct temp= objList.get(i);
 			index.addTupleforOriginData(new InstanceKey(indexList,temp),i);
@@ -40,16 +40,18 @@ public class Index {
 	}
 	public void buildIndexes(ArrayList<OrderDependency> ods) {
 		for(OrderDependency nod:ods) {
-			ECIndexList.add(buildIndex(nod.getLHS(),nod.getRHS()));
+			ECIndexList.add(buildIndex(nod.getLHS()));
 		}
 		//return ECIndexList;
 	}
+	
+
+	
 	//增量数据插入，更新tree的信息
 	public void updateIndexes(ArrayList<OrderDependency> odList) {
-		
+		ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
 		//对于索引中每一个等价类都做更新
-		for(OrderDependency od:odList) {
-			ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
+		for(OrderDependency od:odList) {	
 			EquiClass<InstanceKey> tmp_ind=ECIndexList.get(indexMap.get(od.getLHS()));
 			for(int tid=0;tid<iObjList.size();tid++) {
 				InstanceKey key=new InstanceKey(tmp_ind.getAttrName(),iObjList.get(tid));
@@ -61,8 +63,34 @@ public class Index {
 		}
 	}
 		
-		
 	
+	//根据ind_lists建立索引
+	public void buildIndexs(ArrayList<ArrayList<String>> ind_lists) {
+		for(ArrayList<String> list:ind_lists) {
+			ECIndexList.add(buildIndex(list));
+		}
+		//return ECIndexList;
+	}
+	
+	
+	
+	//增量数据插入，更新tree的信息
+	public void updateIndexs(ArrayList<ArrayList<String>> ind_lists) {
+		ArrayList<DataStruct> iObjList=DataInitial.iObjectList;
+		//对于索引中每一个等价类都做更新
+		for(ArrayList<String> list:ind_lists) {
+			
+			EquiClass<InstanceKey> tmp_ind=ECIndexList.get(indexMap.get(list));
+			for(int tid=0;tid<iObjList.size();tid++) {
+				InstanceKey key=new InstanceKey(tmp_ind.getAttrName(),iObjList.get(tid));
+				tmp_ind.addTupleforIncreData(key, tid);
+				tmp_ind.changedECBlock.put(key.getKeyData(),true);
+				
+			}
+			
+		}
+	}
+
 	//getCur 
 	public ECValues getCur(InstanceKey key,int indexId){
 		return ECIndexList.get(indexId).getCur(key);
